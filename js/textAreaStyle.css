@@ -1,0 +1,103 @@
+.styled{
+	min-height: 1em;
+	max-height: 10vh;
+	max-width: 505px;
+	width: 505px;
+	overflow: hidden;
+	border: none;
+}
+
+.styled2{
+	min-height: 1em;
+	max-height: 10vh;
+	max-width: 35px;
+	width: 35px;
+	overflow: hidden;
+	resize: none; /*remove the resize handle on the bottom right*/
+	border: none;
+}
+
+.styled2B{
+	min-height: 1em;
+	max-height: 10vh;
+	max-width: 35px;
+	width: 35px;
+	overflow: hidden;
+	font-weight: bold;
+	resize: none; /*remove the resize handle on the bottom right*/
+	border: none;
+}
+
+.styled3{
+	min-height: 1em;
+	max-height: 10vh;
+	max-width: 50px;
+	width: 50px;
+	overflow: hidden;	
+	resize: none; /*remove the resize handle on the bottom right*/
+	border: none;
+	
+}
+
+.styled3B{
+	min-height: 1em;
+	max-height: 10vh;
+	max-width: 50px;
+	width: 50px;
+	overflow: hidden;
+	font-weight: bold;
+	resize: none; /*remove the resize handle on the bottom right*/
+}
+
+.styled3Total{
+	min-height: 1em;
+	max-height: 10vh;
+	max-width: 50px;
+	width: 50px;
+	overflow: hidden;	
+	resize: none; /*remove the resize handle on the bottom right*/
+	background-color: #E5E5E5;
+	border: none;
+}
+
+.styled3BTotal{
+	min-height: 1em;
+	max-height: 10vh;
+	max-width: 50px;
+	width: 50px;
+	overflow: hidden;
+	font-weight: bold;
+	resize: none; /*remove the resize handle on the bottom right*/
+	background-color: #E5E5E5;
+	border: none;
+}
+
+/*background color of textarea remain grey*/
+.styled3Total:focus{
+	background-color: #E5E5E5;
+	border: none;
+}
+
+.styled3BTotal:focus{
+	background-color: #E5E5E5;
+	border: none;
+}
+
+
+
+
+
+
+
+
+
+
+.styled4{
+	min-height: 1em;
+	max-height: 10vh;
+	max-width: 80px;
+	width: 80px;
+	overflow: hidden;
+	resize: none; /*remove the resize handle on the bottom right*/
+	border: none;
+}

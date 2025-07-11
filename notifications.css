@@ -1,0 +1,212 @@
+@import url("https://fonts.googleapis.com/css?family=Roboto");
+
+
+$purple: #8974FB;
+$light-purple: #C784DD;
+
+body {
+  background: #fafafa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+.container {
+  width: 20%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  transform: scale(0.6); /* Reduce size */
+}
+
+#toggle {
+  -webkit-appearance: none;
+}
+
+.button {
+  position: absolute;
+  z-index: 999;
+  width: 43px;
+  height: 43px;
+  background: linear-gradient(45deg, #209cff, #68e0cf); /* Apply gradient color */
+  border-radius: 100%;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  top: 0; /* Adjust position to align with the notification list */
+  left: 0;
+
+  &:before {
+    position: absolute;
+    content: "";
+    width: 20px;
+    height: 2px;
+    background: #fff;
+    transform: rotate(90deg);
+    transition: all 0.4s ease;
+  }
+  &:after {
+    position: absolute;
+    content: "";
+    width: 20px;
+    height: 2px;
+    background: #fff;
+    transition: all 0.4s ease;
+  }
+}
+
+.nav {
+  opacity: 0;
+  visibility: hidden; /* Initially hidden */
+  transition: all 0.4s ease-in-out;
+  background: #fff;
+  width: 300px; /* Set a fixed width for the notification list */
+  border-radius: 5px;
+  transform: translateY(20px); /* Slightly below the button */
+  box-shadow: 2px 3px 10px 0 rgba(81, 81, 81, 0.1);
+  border: 1px solid #e4e4e4;
+  padding: 10px;
+  position: absolute; /* Position relative to the button */
+  top: 50px; /* Adjusted to appear below the button */
+  left: 0;
+  z-index: 1000;
+
+  ul {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  a {
+    text-align: center;
+    margin: 20px 0;
+    color: $purple;
+    text-decoration: none;
+    font-family: "Roboto", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 14px;
+    
+    &:hover {
+      color: $light-purple;
+    }
+  }
+}
+
+#toggle:checked ~ .nav {
+  opacity: 1;
+  visibility: visible; /* Make visible when toggled */
+  transform: translateY(0); /* Align with the button */
+}
+
+#toggle:checked ~ .button:before {
+  transform: rotate(225deg);
+}
+
+#toggle:checked ~ .button:after {
+  transform: rotate(135deg);
+}
+
+#toggle:checked ~ .button:before,
+#toggle:checked ~ .button:after {
+  background: linear-gradient(45deg, #209cff, #68e0cf); /* Ensure gradient applies to the "X" lines */
+}
+
+@media (max-width: 640px) {
+  .container {
+    width: 100%;
+  }
+}
+
+@mixin tablet-and-up {
+    @media screen and (min-width: 769px) { @content; }
+}
+@mixin mobile-and-up {
+    @media screen and (min-width: 601px) { @content; }
+}
+@mixin tablet-and-down  {
+    @media screen and (max-width: 768px) { @content; }
+}
+@mixin mobile-only {
+    @media screen and (max-width: 600px) { @content; }
+}
+
+
+ul, li{
+  list-style: none;
+  padding: 0;
+}
+
+.container{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 1rem;
+  background: linear-gradient(45deg, #ffff, #fff);
+  padding: 3rem 0;
+}
+.wrapper{
+  background: #eaf6ff;
+  padding: 2rem;
+  border-radius: 15px;
+}
+h1{
+  font-size: 1.1rem;
+  font-family: sans-serif;
+}
+.sessions{
+  margin-top: 2rem;
+  border-radius: 12px;
+  position: relative;
+}
+li{
+  padding-bottom: 1.5rem;
+  border-left: 1px solid #abaaed;
+  position: relative;
+  padding-left: 20px;
+  margin-left: 10px;
+  &:last-child{
+    border: 0px;
+    padding-bottom: 0;
+  }
+  &:before{
+    content: '';
+    width: 15px;
+    height: 15px;
+    background: white;
+    border: 1px solid #4e5ed3;
+    box-shadow: 3px 3px 0px #bab5f8;
+    box-shadow: 3px 3px 0px #bab5f8;
+    border-radius: 50%;
+    position: absolute;
+    left: -10px;
+    top: 0px;
+  }
+}
+.time{
+  color: #2a2839;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  @include mobile-and-up{
+    font-size: .9rem;
+  }
+  @include mobile-only{
+    margin-bottom: .3rem;
+    font-size: 0.85rem;
+  }
+
+}
+p{
+  color: #4f4f4f;
+      font-family: sans-serif;
+  line-height: 1.5;
+  margin-top:0.4rem;
+  @include mobile-only{
+    font-size: .9rem;
+  }
+}

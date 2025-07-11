@@ -1,0 +1,1558 @@
+<?php 	
+	session_start();	
+	if($_SESSION['userID']==""){
+		//not logged in
+		ob_start();
+		header ("Location: index.php");
+		ob_flush();
+	}
+	include ('connectionImes.php');
+	//open connection
+	$connection = mysqli_connect($mysql_host, $mysql_user, $mysql_password, $mysql_database) or die ("unable to connect!");
+	include ('makeSafe.php');	
+	
+	//update the debit note record
+	if(isset($_POST['Submit'])){		
+		$debitNoteNo = $_POST['debitNoteNo'];	
+		$debitNoteCustomer = $_POST['debitNoteCustomer'];	
+		$debitNoteID = $_POST['debitNoteID'];
+		$customerID = $_POST['customerID'];	
+		$invoiceNo = $_POST['invoiceNo'];
+		$invoiceID = $_POST['invoiceID'];
+		$debitNoteOriginalAmount = $_POST['debitNoteOriginalAmount'];
+		
+		
+		//delete debit note details
+		$sqlDeleteDebitNoteDetail = "DELETE FROM tbdebitnotedetail WHERE debitNoteDetail_debitNoteID = '$debitNoteID'";
+		mysqli_query($connection, $sqlDeleteDebitNoteDetail) or die("error in delete debit note detail query");		
+		
+		
+		$dateDebitNote = convertMysqlDateFormat($_POST['debitNoteDate']);		
+		
+		$debitNoteForm = makeSafe($_POST['debitNoteForm']);
+		$debitNoteTitle = makeSafe($_POST['debitNoteTitle']);
+		$debitNoteTerms = $_POST['debitNoteTerms'];			
+		$debitNoteContent = $_POST['debitNoteContent'];			
+				
+			
+		$debitNoteAttention = makeSafe($_POST['debitNoteAttention']);
+		$debitNoteEmail = makeSafe($_POST['debitNoteEmail']);
+		$invoiceTaxRate = 0;
+		
+		$subTotal = 0.00;
+		$taxTotal = 0.00;
+		$grandTotal = 0.00;
+		$discountTotal = 0.00;
+		$totalAfterDiscount = 0.00;
+		$roundAmount = 0.00;
+		$groundTotalRound = 0.00;
+		$roundStatus = 0;
+		
+		//if detail exist only got all the totals
+		if(isset($_POST['noCol1'])){
+			$subTotal = makeSafe($_POST['subTotal']);
+			$taxTotal = makeSafe($_POST['taxTotal']);
+			$grandTotal = makeSafe($_POST['grandTotal']);
+			$discountTotal = makeSafe($_POST['discountTotal']);
+			$totalAfterDiscount = makeSafe($_POST['totalAfterDiscount']);
+			$roundAmount = makeSafe($_POST['roundAmount']);
+			$groundTotalRound = makeSafe($_POST['groundTotalRound']);			
+			
+			if(is_numeric($subTotal)){					
+			}else{
+				$subTotal = 0.00;
+			}
+			if(is_numeric($taxTotal)){					
+			}else{
+				$taxTotal = 0.00;
+			}
+			if(is_numeric($grandTotal)){					
+			}else{
+				$grandTotal = 0.00;
+			}			
+			if(is_numeric($discountTotal)){					
+			}else{
+				$discountTotal = 0.00;
+			}	
+			if(is_numeric($totalAfterDiscount)){					
+			}else{
+				$totalAfterDiscount = 0.00;
+			}
+			if(is_numeric($roundAmount)){					
+			}else{
+				$roundAmount = 0.00;
+			}	
+			
+			if(is_numeric($groundTotalRound)){					
+			}else{
+				$groundTotalRound = 0.00;
+			}
+			if(isset($_POST['roundStatus'])){
+				$roundStatus = $_POST['roundStatus'];
+			}else{
+				$roundStatus = 0;
+			}
+		}
+		
+		$sqlUpdateDebitNote = "UPDATE tbdebitnote SET debitNote_date = '$dateDebitNote', debitNote_title = '$debitNoteTitle', 
+		debitNote_from = '$debitNoteForm', debitNote_terms = '$debitNoteTerms',	debitNote_content = '$debitNoteContent', 
+		debitNote_attention = '$debitNoteAttention', debitNote_email = '$debitNoteEmail',
+		debitNote_subTotal = '$subTotal', debitNote_taxTotal = '$taxTotal', debitNote_grandTotal = '$grandTotal', 
+		debitNote_discountTotal = '$discountTotal', debitNote_totalAfterDiscount = '$totalAfterDiscount',
+		debitNote_roundAmount = '$roundAmount', debitNote_grandTotalRound = '$groundTotalRound', debitNote_roundStatus = '$roundStatus'		
+		WHERE debitNote_id = '$debitNoteID'";		
+		
+		mysqli_query($connection, $sqlUpdateDebitNote) or die("error in update debit note query");		
+		
+		if(isset($_POST['noCol1'])){
+			$aNoColumn1 = $_POST['noCol1'];			
+			$aNoColumn2 = $_POST['noCol2'];
+			$aNoColumn3 = $_POST['noCol3'];
+			$aNoColumn4 = $_POST['noCol4'];
+			$aNoColumn5 = $_POST['noCol5'];
+			$aNoColumn6 = $_POST['noCol6'];
+			$aNoColumn7 = $_POST['noCol7']; //select tax rate ID
+			$aNoColumn8 = $_POST['noCol8']; //tax rate percent
+			$aNoColumn9 = $_POST['noCol9']; //tax total
+			$aNoColumn10 = $_POST['noCol10']; //grandtotal	
+			$aNoColumn11 = $_POST['noCol11']; //discount Percent
+			$aNoColumn12 = $_POST['noCol12']; //discount Total
+			$aNoColumn13 = $_POST['noCol13']; //totalAfterDiscount			
+			
+			$aNoCheckbox = $_POST['invoiceCheckbox'];//this is not an array but comma separated text because array cannot be hidden field
+			//explode the values and put into an array
+			$aNoCheckboxSplit = explode(',', $aNoCheckbox);
+			
+			$countNo = count($aNoColumn1);
+			$sortID = 0;
+			for($i=0; $i < $countNo; $i++){
+				$noValue1 = $aNoColumn1[$i];
+				$noValue2 = $aNoColumn2[$i];
+				$noValue3 = $aNoColumn3[$i];
+				$noValue4 = $aNoColumn4[$i];
+				$noValue5 = $aNoColumn5[$i];
+				$noValue6 = $aNoColumn6[$i];
+				$noValue7 = $aNoColumn7[$i];
+				$noValue8 = $aNoColumn8[$i];
+				$noValue9 = $aNoColumn9[$i];
+				$noValue10 = $aNoColumn10[$i];
+				$noValue11 = $aNoColumn11[$i];
+				$noValue12 = $aNoColumn12[$i];
+				$noValue13 = $aNoColumn13[$i];
+				
+				$noValueCheckbox = $aNoCheckboxSplit[$i];
+				$sortID = $sortID + 1;
+				
+				//qty
+				if(is_numeric($noValue3)){					
+				}else{
+					$noValue3 = 0.00;
+				}
+				//@price
+				if(is_numeric($noValue5)){					
+				}else{
+					$noValue5 = 0.00;
+				}
+				//row total
+				if(is_numeric($noValue6)){					
+				}else{
+					$noValue6 = 0.00;
+				}
+				//discount percent
+				if(is_numeric($noValue11)){					
+				}else{
+					$noValue11 = 0.00;
+				}
+				//discount amount
+				if(is_numeric($noValue12)){					
+				}else{
+					$noValue12 = 0.00;
+				}
+				//total after discount
+				if(is_numeric($noValue13)){					
+				}else{
+					$noValue13 = 0.00;
+				}
+				
+				//do it here since earlier will cause error 
+				$noValue1 = makeSafe($noValue1);
+				$noValue2 = makeSafe($noValue2);
+				$noValue4 = makeSafe($noValue4);
+				
+				$sqlCreateDebitNoteDetail = "INSERT INTO tbdebitnotedetail(debitNoteDetail_id, debitNoteDetail_no1, debitNoteDetail_no2, 
+				debitNoteDetail_no3, debitNoteDetail_no4, debitNoteDetail_no5, debitNoteDetail_rowTotal, debitNoteDetail_taxRateID,
+				debitNoteDetail_taxPercent, debitNoteDetail_taxTotal, debitNoteDetail_rowGrandTotal,
+				debitNoteDetail_debitNoteID, debitNoteDetail_bold, debitNoteDetail_sortID, debitNoteDetail_discountPercent, 
+				debitNoteDetail_discountAmount	, debitNoteDetail_rowTotalAfterDiscount)
+				VALUES(NULL, '$noValue1', '$noValue2', '$noValue3', '$noValue4', '$noValue5', '$noValue6', '$noValue7', '$noValue8',
+				'$noValue9', '$noValue10', '$debitNoteID', '$noValueCheckbox', '$sortID', '$noValue11', '$noValue12', '$noValue13')";
+				
+				mysqli_query($connection, $sqlCreateDebitNoteDetail) or die("error in create debit note detail query");				
+			}			
+		}			
+				
+		//Update Customer account
+		$sqlUpdateCustomerAccount = "UPDATE tbcustomeraccount SET customerAccount_date = '$dateDebitNote', 
+		customerAccount_debit = '$groundTotalRound' WHERE (customerAccount_customerID = '$customerID') AND 
+		(customerAccount_documentType = 'DN') AND (customerAccount_documentTypeID = '$debitNoteID')";
+		
+		//Update Account Receiveable
+		$sqlUpdateAccountReceiveable = "UPDATE tbaccount4 SET account4_date = '$dateDebitNote', account4_debit = '$groundTotalRound' 
+		WHERE (account4_account3ID = 2) AND (account4_documentType = 'DN') AND (account4_documentTypeID = '$debitNoteID')";
+		
+		//Update Sales Account
+		$sqlUpdateSalesAccount = "UPDATE tbaccount4 SET account4_date = '$dateDebitNote', account4_credit = '$totalAfterDiscount'
+		WHERE (account4_account3ID = 4) AND (account4_documentType = 'DN') AND (account4_documentTypeID = '$debitNoteID')";
+		
+		mysqli_query($connection, $sqlUpdateCustomerAccount) or die("error in update customer account query");
+		mysqli_query($connection, $sqlUpdateAccountReceiveable) or die("error in update account receiveable query");
+		mysqli_query($connection, $sqlUpdateSalesAccount) or die("error in update sales account query");
+		
+		
+		//Create Sales Tax Payable but before that delete first test since it might not created earlier
+		$sqlDeleteSalesTaxPayable = "DELETE FROM tbaccount4 WHERE (account4_account3ID = 10) AND (account4_documentType = 'DN') 
+		AND (account4_documentTypeID = '$debitNoteID')";
+		mysqli_query($connection, $sqlDeleteSalesTaxPayable) or die("error in delete sales tax payable query");
+		
+		if($taxTotal <> 0.00){
+			$sqlCreateSalesTaxPayable = "INSERT INTO tbaccount4(account4_id, account4_account3ID, account4_date, account4_reference, 
+			account4_documentType, account4_documentTypeID, account4_description, account4_debit, account4_credit) 
+			VALUES(NULL, 10, '$dateDebitNote', '$debitNoteNo', 'DN', '$debitNoteID', '$debitNoteCustomer', '$taxTotal', 0)";
+			
+			mysqli_query($connection, $sqlCreateSalesTaxPayable) or die("error in create sales tax payable query");	
+		}
+		
+		
+		//Create Expenses Rounded but before that delete first test since it might not created earlier, HARD CODED = 11
+		$sqlDeleteRoundAccount = "DELETE FROM tbaccount4 WHERE (account4_account3ID = 11) AND (account4_documentType = 'DN') 
+		AND (account4_documentTypeID = '$debitNoteID')";
+		mysqli_query($connection, $sqlDeleteRoundAccount) or die("error in delete account round query");	
+		
+		
+		
+		//Rounded amount if exist, store into Expenses Round Account  HARD CODED = 11
+		if($roundAmount == 0.00){	
+			//do nothing
+		}elseif($roundAmount > 0.00){
+			//positive, Debit Expense account, loss to company since DN
+			$sqlCreateRoundAccount = "INSERT INTO tbaccount4(account4_id, account4_account3ID, account4_date, account4_reference, 
+			account4_documentType, account4_documentTypeID, account4_description, account4_debit, account4_credit) 
+			VALUES(NULL, 11, '$dateDebitNote', '$debitNoteNo', 'DN', '$debitNoteID', '$debitNoteCustomer', 0, '$roundAmount')";
+			
+			mysqli_query($connection, $sqlCreateRoundAccount) or die("error in create account round credit query");	
+		
+		
+		}elseif($roundAmount < 0.00){
+			//negative, Credit Expense account, gain to company since CN
+			$absRoundAmount = abs($roundAmount); //remove negative sign
+			
+			$sqlCreateRoundAccount = "INSERT INTO tbaccount4(account4_id, account4_account3ID, account4_date, account4_reference, 
+			account4_documentType, account4_documentTypeID, account4_description, account4_debit, account4_credit) 
+			VALUES(NULL, 11, '$dateDebitNote', '$debitNoteNo', 'DN', '$debitNoteID', '$debitNoteCustomer', '$absRoundAmount', 0)";
+
+			mysqli_query($connection, $sqlCreateRoundAccount) or die("error in create account round debit query");	
+		}
+		
+		
+		//UPDATE INVOICE RECORD WITH DEBIT NOTE AMOUNT
+		$sqlUpdateInvoiceDebitNote = "UPDATE tbinvoice SET invoice_debitNote = (invoice_debitNote - $debitNoteOriginalAmount + $groundTotalRound) 
+		WHERE invoice_id = '$invoiceID'";
+		mysqli_query($connection, $sqlUpdateInvoiceDebitNote) or die("error in update invoice debit note query");
+		
+		//redirect to editDebitNote.php form
+		header("Location: editDebitNote.php?idDebitNote=$debitNoteID&idCustomer=$customerID");
+	
+		
+	}else{
+		$debitNoteID = $_GET['idDebitNote'];
+		$customerID = $_GET['idCustomer'];		
+	}
+	
+	//get the customer info	
+	$sqlCustomerInfo = "SELECT customer_name, customer_tel, customer_address FROM tbcustomer WHERE customer_id = '$customerID'";	
+	$resultCustomerInfo = mysqli_query($connection, $sqlCustomerInfo) or die("error in customer query");
+	$resultCustomerInfo2 = mysqli_fetch_row($resultCustomerInfo);
+	
+	//get the debit note info	
+	$sqlDebitNoteInfo = "SELECT debitNote_no, debitNote_date, debitNote_title, debitNote_from, debitNote_terms, 
+	debitNote_attention, debitNote_email, debitNote_subTotal, 
+	debitNote_taxTotal, debitNote_grandTotal, debitNote_discountTotal, debitNote_totalAfterDiscount, 
+	debitNote_roundAmount, debitNote_grandTotalRound, debitNote_roundStatus, debitNote_content, invoice_no, invoice_id  	
+	FROM tbinvoice, tbdebitnote WHERE (invoice_id = debitNote_invoiceID) AND (debitNote_id = '$debitNoteID')";
+	
+	$resultDebitNoteInfo = mysqli_query($connection, $sqlDebitNoteInfo) or die("error in debit note query");
+	$rowDebitNoteInfo = mysqli_fetch_row($resultDebitNoteInfo);	
+	
+	
+	//get the credit note details
+	$sqlDebitNoteDetailInfo = "SELECT debitNoteDetail_no1, debitNoteDetail_no2, debitNoteDetail_no3, debitNoteDetail_no4, debitNoteDetail_no5, 
+	debitNoteDetail_rowTotal, debitNoteDetail_taxRateID, debitNoteDetail_taxPercent, debitNoteDetail_taxTotal, debitNoteDetail_rowGrandTotal, 
+	debitNoteDetail_bold, debitNoteDetail_sortID, debitNoteDetail_discountPercent, debitNoteDetail_discountAmount, 
+	debitNoteDetail_rowTotalAfterDiscount FROM tbdebitnotedetail 
+	WHERE debitNoteDetail_debitNoteID = '$debitNoteID' ORDER BY debitNoteDetail_sortID ASC";
+	
+	$resultDebitNoteDetailInfo = mysqli_query($connection, $sqlDebitNoteDetailInfo) or die("error in debit note detail query");	
+	
+	//-----------------------------------------------------
+	//get all the tax rates list and put inside array
+	$aTaxRateList = array();
+	$aTaxRateListDB = array();//hold the list to prevent multiple queries
+	
+	
+	//get the tax rates
+	$sqlGetTaxRate = "SELECT taxRate_id, taxRate_code FROM tbtaxrate ORDER BY taxRate_default DESC, taxRate_code ASC";	
+	$resultGetTaxRate = mysqli_query($connection, $sqlGetTaxRate) or die("error in get tax rate query");
+	
+	$d = 0;
+	
+	while($rowTaxRateList = mysqli_fetch_array($resultGetTaxRate)){	
+		$aTaxRateList[] = $rowTaxRateList[0];	
+		$aTaxRateListDB[$d][0] = $rowTaxRateList[0];
+		$aTaxRateListDB[$d][1] = $rowTaxRateList[1];
+		$d = $d + 1;
+	}
+	
+	// php function to search multi-dimensional array
+	function searchArray($key, $st, $array) {
+	   foreach ($array as $k => $v) {
+		   if ($v[$key] === $st) {
+			   return $k;
+		   }
+	   }
+	   return null;
+	}
+	
+	
+?>
+<html>
+<head>
+<title>Invoice Trucking & Payroll System</title>
+<link href="js/menuCSS.css" rel="stylesheet" type="text/css">
+<link href="js/jquery-ui.css" rel="stylesheet" type="text/css">
+<link href="js/textAreaStyle.css" rel="stylesheet" type="text/css">
+<script src="js/jquery-3.2.1.min.js"></script>
+<script src="js/jquery-ui.min.js"></script>
+<script>
+	
+	$( function() {
+		$( "#demo2" ).datepicker({ dateFormat: "dd/mm/yy"});
+	} );
+</script>
+<style type="text/css">
+table.mystyle
+{
+	border-width: 0 0 1px 1px;
+	border-spacing: 0;
+	border-collapse: collapse;
+	border-style: solid;
+	border-color: #CDD0D1;
+	font-size: 13px; /* Added font-size */
+}
+.mystyle td, .mystyle th
+{
+	margin: 0;
+	padding: 2px;
+	border-width: 1px 1px 0 0
+	border-style: solid;
+	border-color: #CDD0D1;
+}
+
+.notfirst:hover
+{
+	background-color: #AFCCB0;
+}
+input:focus
+{
+	background-color: AFCCB0;
+}
+textarea:focus
+{
+	background-color: AFCCB0;
+}
+select:focus
+{
+	background-color: AFCCB0;
+}
+
+textarea {
+    border: none;
+    outline: none;
+}
+
+
+.ui-widget.ui-widget-content {
+  border: 1px solid #000000;
+  padding: 0;
+}
+
+/* show the CREDIT NOTE WORD ON CLOSE BUTTON*/
+	 .ui-button-icon-only {
+        width: 3em;
+        box-sizing: border-box;
+        text-indent: -115px;
+        white-space: nowrap;
+    }
+	
+	main2 {
+		margin-bottom: 100%;
+	}
+
+  .floating-menu {
+    font-family: sans-serif;
+    background: yellowgreen;
+    padding: 5px;
+    width: 130px;
+    z-index: 100;
+    position: fixed;
+    bottom: 500px;
+    right: 0px;
+  }
+
+  .floating-menu a, 
+  .floating-menu h3 {
+    font-size: 0.9em;
+    display: block;
+    margin: 0 0.5em;
+    color: white;
+  }
+</style>
+<script>
+var ajaxResult = []; //to store the array of objects
+var namingValue = 1;
+
+function GetTaxRateList(){
+	
+	$.ajax({
+		type : 'POST',
+		url : 'getTaxRate.php',		
+		dataType : 'json', //return value type
+		async: false, //To be sure that nothing happens before the AJAX request is achieved, if not first click not working
+		success : function(response)
+		{			
+			//array of objects
+			ajaxResult = response;           
+		}	
+	})
+}
+
+
+
+
+
+
+
+function GetTaxRate(n){
+	//console.log(n);
+	var e = document.getElementById(n);
+	var rateID = e.options[e.selectedIndex].value;
+	//console.log(rateID);	
+	var rowArray = SearchArray(rateID, ajaxResult);	
+	var selectName = n;
+	var aSelectName = selectName.split("|");
+	var aSelectNo = "";
+	aSelectNo = aSelectName[1];
+	
+	var rateName = "";	
+	rateName = "rate|" + aSelectNo;	
+	document.getElementById(rateName).value = rowArray;
+	CalculateRowTotal();
+}
+
+function SearchArray(nameKey, myArray){
+	//search the array of objects and get the particular value by the correct field
+	for(var i = 0; i < myArray.length; i++){
+		if(myArray[i].id === nameKey){
+			return myArray[i].taxRateValue;
+		}		
+	}	
+}
+
+
+function popupwindow(){	
+	//loop through the table to see which rows has focus
+	var myTab = document.getElementById('empTable');        
+	var focusRow = 1;
+	// LOOP THROUGH EACH ROW OF THE TABLE.
+	for (row = 1; row < myTab.rows.length; row++) {				
+			var element = myTab.rows.item(row).cells[3];
+			var myElement = element.childNodes[0].id;				
+			//ActiveElement is the element id with focus
+			if(myElement === document.activeElement.id){
+				//console.log(focusRow);
+				break;					
+			}            
+		focusRow = focusRow + 1;
+	}	
+	var focusRowString = focusRow.toString(); //convert to string to attach to GET string
+	var page = "searchProduct.php?idRowFocus=";	
+	page = page + focusRowString;	
+	
+	
+	var $dialog = $('<div></div>')
+		.html('<iframe id ="productList" name ="productList" style="border: 0px; " src="' + page + '" width="100%" height="100%"></iframe>')
+	   .dialog({		  
+		   autoOpen: false,
+		   modal: true,
+		   closeText: 'CREDIT NOTE',
+		   height: 500,
+		   width: 800,		   
+		   title: "Product & Servis List",
+		   close: function (dialogclose, ui) {			   
+				$('body').css("overflow", "auto"); //body can scrol when modal close
+				
+				var list, index;
+				list = document.getElementsByClassName("styled");	//gets a node list, not single element			
+				for(index = 0; index < list.length; ++index){
+					list[index].setAttribute('ondblclick', 'popupwindow()'); //NO USE SELECTOR TO CHOOSE ELEMENT, add the attribute back
+				}		
+				
+				if(event.which == 27){
+					//do nothing because ESCAPE KEY PRESSED					
+					
+				} else {
+					//1 TO 3 means mouse button value pressed
+					//send parameters back to main page					
+					var selectedProduct = document.getElementById('productList').contentWindow.document.getElementById('selectedProduct').value;									
+				
+					//process the returned product id & row to get product name & price etc					
+					var arraySelectedProduct = selectedProduct.split("|");
+					var rowSelected = arraySelectedProduct[0];
+					var productSelected = arraySelectedProduct[1];					
+				
+					//use a function					
+					if(productSelected != 0){InsertProductList(rowSelected, productSelected);}					
+				}				
+				$dialog.dialog('destroy');				
+		   }		   
+	   });	
+	
+	$dialog.dialog('open');
+	$('body').css("overflow", "hidden"); //body cannot scrol when modal open
+	
+	var x = document.getElementsByClassName("styled");//this method okay for removing attribute
+	var i;
+	for(i = 0; i < x.length; i++){
+		//remove the dblclick attribute to prevent multi modal 		
+		$(x[i]).removeAttr("ondblclick");	//SELECTOR TO CHOOSE ELEMENT	
+	}	
+
+}
+
+function InsertProductList(x, y){
+	var rowSelected = x;
+	var productID = y;	
+	var data = "productID="+productID;	
+	
+	$.ajax({
+		type: 'POST',
+		url: 'getProductInfo.php',
+		data: data,
+		dataType: 'text',
+		success:function(f){
+			
+			var splitProductInfo = f.split('++++');
+			
+			var productName = splitProductInfo[0];
+			var productPrice = splitProductInfo[1];
+			var productUOM = splitProductInfo[3];
+			
+			//insert process
+			var myTab = document.getElementById('empTable');
+			var elementProductName = myTab.rows.item(rowSelected).cells[3];
+			var elementProductUOM = myTab.rows.item(rowSelected).cells[5];
+			var elementProductPrice = myTab.rows.item(rowSelected).cells[6];			
+			
+			elementProductName.childNodes[0].value = productName; 
+			elementProductPrice.childNodes[0].value = productPrice;
+			elementProductUOM.childNodes[0].value = productUOM;
+			CalculateRowTotal();
+		}		
+	})		
+}
+
+
+	
+
+
+
+
+
+
+
+function CalculateRowTotal(){	
+	//loop through the table to see which rows are selected
+	var myTab = document.getElementById('empTable');
+	var subtotalValue = 0;
+	var discountTotalValue = 0;
+	var totalAfterDiscountValue = 0;
+	var taxTotalValue = 0;
+	var grandTotalValue = 0;
+	
+	document.getElementById('subTotal').value = "";
+	document.getElementById('discountTotal').value = "";
+	document.getElementById('totalAfterDiscount').value = "";
+	document.getElementById('taxTotal').value = "";
+	document.getElementById('grandTotal').value = "";
+	
+	// LOOP THROUGH EACH ROW OF THE TABLE.
+	for (row = 1; row < myTab.rows.length; row++) {
+		 for (c = 0; c < myTab.rows[row].cells.length; c++) {   // EACH CELL IN A ROW.
+			if(c == 4){
+				var element = myTab.rows.item(row).cells[c];				
+						
+				if((isNaN(element.childNodes[0].value)) ||(element.childNodes[0].value.trim() == "")){
+					actualQty = 1;
+				}else{
+					if(element.childNodes[0].value==""){
+						actualQty = 1;
+					}else{
+						actualQty = element.childNodes[0].value;	
+					}		
+				}						
+			}
+			
+			if(c == 6){
+				var element = myTab.rows.item(row).cells[c];
+				var element2 = myTab.rows.item(row).cells[7];
+				var rowTotal = 0;
+				var actualPrice = 0;
+				
+				if((isNaN(element.childNodes[0].value)) ||(element.childNodes[0].value.trim() == "")){		
+					element2.childNodes[0].value = "0.00";
+					
+				}else{
+					if(element.childNodes[0].value==""){
+						element2.childNodes[0].value = "0.00";
+						
+					}else{			
+						var actualPrice = parseFloat(element.childNodes[0].value);
+						rowTotal = actualQty * actualPrice;
+						element2.childNodes[0].value = rowTotal.toFixed(2);
+						subtotalValue = subtotalValue + (actualQty * actualPrice);
+					}		
+				}				
+			}		
+		
+			
+				if(c == 8){
+				var element = myTab.rows.item(row).cells[c];//discount %
+				var element2 = myTab.rows.item(row).cells[9];
+				var element3 = myTab.rows.item(row).cells[10];
+				var element4 = myTab.rows.item(row).cells[7]; //subtotal	
+				var rowTotalAfterDiscount = 0.00;
+					
+				if((isNaN(element.childNodes[0].value)) ||(element.childNodes[0].value.trim() == "")){
+					element2.childNodes[0].value = "0.00";
+					element3.childNodes[0].value = element4.childNodes[0].value;
+					rowTotalAfterDiscount = parseFloat(element4.childNodes[0].value);
+				}else{
+					
+					var rowSubtotal = element4.childNodes[0].value;
+					var rowDiscountRate = element.childNodes[0].value;
+					var rowDiscountAmount = (rowSubtotal * rowDiscountRate)/100;
+					element2.childNodes[0].value = rowDiscountAmount.toFixed(2);
+					//parseFloat function to change string to number
+					rowTotalAfterDiscount = parseFloat(rowSubtotal) - parseFloat(rowDiscountAmount);
+					element3.childNodes[0].value = rowTotalAfterDiscount.toFixed(2);
+					discountTotalValue = discountTotalValue + parseFloat(rowDiscountAmount);
+					
+				}
+				totalAfterDiscountValue = totalAfterDiscountValue + parseFloat(rowTotalAfterDiscount);
+			}		
+		
+			if(c == 12){
+				var element = myTab.rows.item(row).cells[c];
+				var element2 = myTab.rows.item(row).cells[13];
+				var element3 = myTab.rows.item(row).cells[14];
+				var element4 = myTab.rows.item(row).cells[10];				
+				
+				var rowRate = 0.00;
+				var rowRateTotal = 0.00;
+				var rowGrandTotal = 0.00;
+				var rowTotalAfterDiscount = 0.00;
+				rowTotalAfterDiscount = parseFloat(element4.childNodes[0].value);
+				
+				if(element.childNodes[0].value == "0.00"){
+					element2.childNodes[0].value = "0.00";
+					element3.childNodes[0].value = element4.childNodes[0].value;					
+					rowGrandTotal = parseFloat(element4.childNodes[0].value);
+					
+				}else{
+					
+					if(element4.childNodes[0].value == "0.00"){
+						element2.childNodes[0].value = "0.00";
+						element3.childNodes[0].value = "0.00";
+					}else{				
+						rowRate = parseFloat(element.childNodes[0].value);
+						rowRateTotal = (rowTotalAfterDiscount * rowRate)/100;
+						//parseFloat function to change string to number
+						rowGrandTotal = parseFloat(rowTotalAfterDiscount) + parseFloat(rowRateTotal);
+						element2.childNodes[0].value = rowRateTotal.toFixed(2);		
+						element3.childNodes[0].value = rowGrandTotal.toFixed(2);
+						taxTotalValue = taxTotalValue + parseFloat(rowRateTotal);
+					}				
+				}				
+				grandTotalValue = grandTotalValue + parseFloat(rowGrandTotal);	
+			}		
+		
+		}	
+	}	
+	document.getElementById('subTotal').value = subtotalValue.toFixed(2);
+	document.getElementById('discountTotal').value = discountTotalValue.toFixed(2);	
+	document.getElementById('totalAfterDiscount').value = totalAfterDiscountValue.toFixed(2);
+	document.getElementById('taxTotal').value = taxTotalValue.toFixed(2);					
+	document.getElementById('grandTotal').value = grandTotalValue.toFixed(2);
+	
+	if(document.getElementById('roundStatus').checked == true){
+		//the rounded Grand total
+		var factor = 0.05 //nearest 0.05
+		var valueGrandTotalRound =  Math.round(grandTotalValue/factor)*factor;
+		var roundAmount = valueGrandTotalRound - grandTotalValue;
+		document.getElementById('groundTotalRound').value = valueGrandTotalRound.toFixed(2);	
+		document.getElementById('roundAmount').value = roundAmount.toFixed(2);
+	}else{
+		document.getElementById('roundAmount').value = "0.00";
+		document.getElementById('groundTotalRound').value = grandTotalValue.toFixed(2);
+	}
+	
+}
+
+function check(it) {
+		tr = it.parentElement.parentElement;
+		var textareas = tr.getElementsByTagName("textarea");
+		for (var i = 0; i < textareas.length; i++) {
+		  textareas[i].style.fontWeight = (it.checked) ? "bold" : "normal";
+		}
+		
+		//loop through the table to see which rows are selected
+		var myTab = document.getElementById('empTable');
+        var values = new Array();
+		
+		// LOOP THROUGH EACH ROW OF THE TABLE.
+        for (row = 1; row < myTab.rows.length; row++) {
+			 for (c = 0; c < myTab.rows[row].cells.length; c++) {   // EACH CELL IN A ROW.
+
+                var element = myTab.rows.item(row).cells[c];
+                if (element.childNodes[0].getAttribute('type') == 'checkbox') {
+                    if(element.childNodes[0].checked == true){
+						values.push(element.childNodes[0].value);
+					}else{
+						values.push('0');
+					}				
+				}
+            }
+        }		
+        //console.log(values);
+		document.getElementById('invoiceCheckbox').value = values;
+}
+	
+	function DisableSubmitButton(){		
+		document.getElementById("bt").disabled = true;		
+	}
+	
+	
+	
+	function CheckAndSubmit(){
+		//EDIT CREDIT NOTE
+		var itemName = document.getElementById("debitNoteNo");
+		if(itemName.value.length==0){
+			alert("Must enter Credit Note No!");
+			debitNoteNo.focus();
+			return false;
+		}	
+		var itemName = document.getElementById("demo2");
+		if(itemName.value.length==0){
+			alert("Must enter Credit Note date!");
+			demo2.focus();
+			return false;
+		}		
+		var r = confirm("Do you want to Edit Credit Note?");
+		if(r==false){
+			return false;
+		}
+			
+	}	
+	
+
+// ARRAY FOR HEADER.
+    var arrHead = new Array();
+    arrHead = ['', 'B', 'No', 'Description', 'Qty', 'Unit', 'Price', 'Total', 'Disc%', 'Disc', 'A.Disc', 'Code', 'Rate', 'Tax', 'Total'];      // SIMPLY ADD OR REMOVE VALUES IN THE ARRAY FOR TABLE HEADERS.
+	
+    // FIRST CREATE A TABLE STRUCTURE BY ADDING A FEW HEADERS AND
+    // ADD THE TABLE TO YOUR WEB PAGE.
+    function createTable() {
+        GetTaxRateList();		
+		
+		var empTable = document.createElement('table');
+        empTable.setAttribute('id', 'empTable');            // SET THE TABLE ID.
+		empTable.setAttribute('width', '1200px');
+		empTable.setAttribute('border', '1px');
+		empTable.setAttribute('cellpadding', '0px');
+		empTable.setAttribute('class', 'mystyle');
+
+        var tr = empTable.insertRow(0);
+
+         for (var h = 0; h < arrHead.length; h++) {
+            var th = document.createElement('th');          // TABLE HEADER.
+            th.innerHTML = arrHead[h];
+            tr.appendChild(th);
+        } 
+
+        var div = document.getElementById('cont');
+        div.appendChild(empTable);    // ADD THE TABLE TO YOUR WEB PAGE.
+		//document.getElementById("bt").disabled = true;  Not sure why this was disabled earlier.
+    }
+	
+	
+	function createTableTotal() {
+		var empTableTotal = document.createElement('table');
+		empTableTotal.setAttribute('id', 'empTableTotal');            // SET THE TABLE ID.
+		empTableTotal.setAttribute('width', '1200px');
+		empTableTotal.setAttribute('border', '1px');
+		empTableTotal.setAttribute('cellpadding', '0px');
+		empTableTotal.setAttribute('class', 'mystyle');
+		//subtotal
+		var tr = empTableTotal.insertRow(0);		
+		var td = document.createElement('td');		
+		
+		td = tr.insertCell(0);
+		td.width = "76%";		
+		
+		td = tr.insertCell(1);
+		td.width = "15%";		
+		td.innerHTML = "Subtotal";
+		tr.appendChild(td);
+		
+		td = tr.insertCell(2);
+		td.width = "9%";
+		var ele = document.createElement('input');		
+		
+		ele.setAttribute('id', 'subTotal');
+		ele.setAttribute('name', 'subTotal');
+		ele.setAttribute('readonly', 'true');
+		ele.setAttribute('class', 'styled4');
+		
+		td.appendChild(ele);
+		
+		//discount amount total
+		tr = empTableTotal.insertRow(1);
+		td = document.createElement('td');
+		
+		td = tr.insertCell(0);
+		td.width = "76%";
+		
+		td = tr.insertCell(1);
+		td.width = "15%";
+		td.innerHTML = "Discount Total";
+		tr.appendChild(td);
+		
+		td = tr.insertCell(2);
+		td.width = "9%";
+		var ele = document.createElement('input');
+		ele.setAttribute('id', 'discountTotal');
+		ele.setAttribute('name', 'discountTotal');
+		ele.setAttribute('readonly', 'true');
+		ele.setAttribute('class', 'styled4');
+		td.appendChild(ele);		
+		
+		//total after discount
+		tr = empTableTotal.insertRow(2);
+		td = document.createElement('td');
+		
+		td = tr.insertCell(0);
+		td.width = "76%";
+		
+		td = tr.insertCell(1);
+		td.width = "15%";
+		td.innerHTML = "Total After Discount";
+		tr.appendChild(td);
+		
+		td = tr.insertCell(2);
+		td.width = "9%";
+		var ele = document.createElement('input');
+		ele.setAttribute('id', 'totalAfterDiscount');
+		ele.setAttribute('name', 'totalAfterDiscount');
+		ele.setAttribute('readonly', 'true');
+		ele.setAttribute('class', 'styled4');
+		td.appendChild(ele);
+		
+		//tax
+		tr = empTableTotal.insertRow(3);
+		td = document.createElement('td');
+		
+		td = tr.insertCell(0);
+		td.width = "76%";
+		
+		td = tr.insertCell(1);
+		td.width = "15%";
+		td.innerHTML = "Tax";
+		tr.appendChild(td);
+		
+		td = tr.insertCell(2);
+		td.width = "9%";
+		var ele = document.createElement('input');
+		ele.setAttribute('id', 'taxTotal');
+		ele.setAttribute('name', 'taxTotal');
+		ele.setAttribute('readonly', 'true');
+		ele.setAttribute('class', 'styled4');
+		td.appendChild(ele);
+		
+		//grand total
+		tr = empTableTotal.insertRow(4);
+		td = document.createElement('td'); 
+		
+		td = tr.insertCell(0);
+		td.width = "76%";
+		
+		td = tr.insertCell(1);
+		td.width = "15%";
+		td.innerHTML = "Total";
+		tr.appendChild(td);
+		
+		td = tr.insertCell(2);
+		td.width = "9%";
+		var ele = document.createElement('input');
+		ele.setAttribute('id', 'grandTotal');
+		ele.setAttribute('name', 'grandTotal');
+		ele.setAttribute('readonly', 'true');
+		ele.setAttribute('class', 'styled4');
+		td.appendChild(ele);
+
+		//round amount
+		tr = empTableTotal.insertRow(5);
+		td = document.createElement('td'); 
+		
+		td = tr.insertCell(0);
+		td.width = "76%";
+
+		td = tr.insertCell(1);
+		td.width = "15%";
+		td.innerHTML = "Round";
+		tr.appendChild(td);
+		
+		td = tr.insertCell(2);
+		td.width = "9%";
+		var ele = document.createElement('input');
+		var ele2 = document.createElement('input');
+		
+		ele.setAttribute('id', 'roundAmount');
+		ele.setAttribute('name', 'roundAmount');
+		ele.setAttribute('readonly', 'true');
+		ele.setAttribute('class', 'styled4');
+		ele2.setAttribute('type', 'checkbox');
+		ele2.setAttribute('id', 'roundStatus');
+		ele2.setAttribute('name', 'roundStatus');
+		ele2.setAttribute('value', '1');
+		ele2.setAttribute('onclick', 'CalculateRowTotal()');
+		
+		td.appendChild(ele);
+		td.appendChild(ele2);
+
+		//rounded grand total
+		tr = empTableTotal.insertRow(6);
+		td = document.createElement('td'); 
+		
+		td = tr.insertCell(0);
+		td.width = "76%";
+
+		td = tr.insertCell(1);
+		td.width = "15%";
+		td.innerHTML = "Rounded Total";
+		tr.appendChild(td);
+		
+		td = tr.insertCell(2);
+		td.width = "9%";
+		var ele = document.createElement('input');		
+		
+		ele.setAttribute('id', 'groundTotalRound');
+		ele.setAttribute('name', 'groundTotalRound');
+		ele.setAttribute('readonly', 'true');
+		ele.setAttribute('class', 'styled4');
+		td.appendChild(ele);		
+		
+		var div = document.getElementById('cont2');
+		div.appendChild(empTableTotal);
+	
+	}
+	
+
+    // ADD A NEW ROW TO THE TABLE.s
+    function addRow2() {
+        var empTab = document.getElementById('empTable');
+        var rowCnt = empTab.rows.length;        // GET TABLE ROW COUNT.
+        var tr = empTab.insertRow(rowCnt);      // TABLE ROW.
+		
+		var selectName = "";
+		var rateName = "";        
+		var rowCounter = 1;
+		
+        for (var c = 0; c < arrHead.length; c++) {
+            var td = document.createElement('td');          // TABLE DEFINITION.
+            td = tr.insertCell(c);
+
+            if (c == 0) {           // FIRST COLUMN.
+                // ADD A BUTTON.
+                var button = document.createElement('input');
+
+                // SET INPUT ATTRIBUTE.
+                button.setAttribute('type', 'button');
+                button.setAttribute('value', 'del');
+
+                // ADD THE BUTTON's 'onclick' EVENT.
+                button.setAttribute('onclick', 'removeRow(this)');
+                td.appendChild(button);
+            }
+			else if (c == 1){
+				//create Checkbox
+				var ele = document.createElement('input');
+                ele.setAttribute('type', 'checkbox');
+                ele.setAttribute('value', '1');				
+				ele.setAttribute('name', 'noCheckbox[this]');
+				ele.setAttribute('onclick', 'check(this)');
+				td.appendChild(ele);				
+			}
+            else {
+                // CREATE AND ADD TEXTBOX IN EACH CELL.
+                var ele = document.createElement('textarea');
+                //ele.setAttribute('type', 'text');
+               // ele.setAttribute('value', '');				
+								
+				if(c == 2){	
+					//NO
+					ele.setAttribute('id', 'noCol1[]');					
+					ele.setAttribute('class', 'styled2');					
+					ele.setAttribute('name', 'noCol1[]');
+					ele.setAttribute('maxlength', '6');
+					td.appendChild(ele);
+				}
+				if(c == 3){
+					//DESCRIPTION
+					var idName = "id" + Math.random().toString(16).slice(2);
+					ele.setAttribute('id', idName);	
+					//ele.setAttribute('id', 'noCol2[]');
+					ele.setAttribute('class', 'styled');					
+					ele.setAttribute('name', 'noCol2[]');
+					ele.setAttribute('maxlength', '200');
+					ele.setAttribute('ondblclick', 'popupwindow()');
+					ele.style.width = '480px';
+					td.appendChild(ele);
+				}
+				if(c == 4){
+					//QUANTITY
+					ele.setAttribute('id', 'noCol3[]');
+					ele.setAttribute('class', 'styled3');
+					ele.setAttribute('name', 'noCol3[]');
+					ele.setAttribute('maxlength', '10');
+					ele.setAttribute('onblur', 'CalculateRowTotal()');
+					td.appendChild(ele);					
+					
+				}
+				if(c == 5){
+					//UNIT
+					ele.setAttribute('id', 'noCol4[]');
+					ele.setAttribute('class', 'styled3');					
+					ele.setAttribute('name', 'noCol4[]');
+					ele.setAttribute('maxlength', '10');
+					td.appendChild(ele);
+				}
+				if(c == 6){
+					//PRICE
+					ele.setAttribute('id', 'noCol5[]');
+					ele.setAttribute('class', 'styled3');
+					ele.setAttribute('name', 'noCol5[]');
+					ele.setAttribute('maxlength', '15');
+					ele.setAttribute('onblur', 'CalculateRowTotal()');
+					td.appendChild(ele);
+				}  
+				if(c == 7){
+					//TOTAL
+					ele.setAttribute('id', 'noCol6[]');
+					ele.setAttribute('class', 'styled3Total');
+					ele.setAttribute('name', 'noCol6[]');
+					ele.setAttribute('maxlength', '15');
+					ele.setAttribute('readonly', 'true');
+					td.appendChild(ele);
+				}
+				//Discount percent
+				if(c == 8){
+					//DISCOUNT PERCENT
+					ele.setAttribute('id', 'noCol11[]');
+					ele.setAttribute('class', 'styled3');
+					ele.setAttribute('name', 'noCol11[]');
+					ele.setAttribute('maxlength', '10');
+					ele.setAttribute('onblur', 'CalculateRowTotal()');
+					td.appendChild(ele);
+				} 
+				//Discount amount
+				if(c == 9){
+					//DISCOUNT AMOUNT
+					ele.setAttribute('id', 'noCol12[]');
+					ele.setAttribute('class', 'styled3Total');
+					ele.setAttribute('name', 'noCol12[]');
+					ele.setAttribute('maxlength', '15');
+					ele.setAttribute('readonly', 'true');
+					td.appendChild(ele);
+				}
+				//Total after Discount
+				if(c == 10){
+					//TOTAL AFTER DISCOUNT
+					ele.setAttribute('id', 'noCol13[]');
+					ele.setAttribute('class', 'styled3Total');
+					ele.setAttribute('name', 'noCol13[]');
+					ele.setAttribute('maxlength', '15');
+					ele.setAttribute('readonly', 'true');
+					td.appendChild(ele);
+				}
+				
+				if(c == 11){
+					//TAX CODE
+					var eleSelect = document.createElement('select');				
+					//unique ID for select
+					
+					if($('#counterValue').length > 0){
+						var selectName2 = namingValue + document.getElementById('counterValue').value;
+					}else{
+						var selectName2 = namingValue;
+					}					
+					
+					selectName = "select|" + selectName2.toString();
+					//console.log(selectName);
+					eleSelect.setAttribute('name', 'noCol7[]');
+					eleSelect.setAttribute('id', selectName);
+					eleSelect.setAttribute('onchange', 'GetTaxRate(id)');
+					td.appendChild(eleSelect);		
+					
+					//GetTaxRateList();
+					
+					//iterating an array of Objects, using jQuery method
+					$.each(ajaxResult, function(key, value){
+						var taxRate = value.taxRate;
+						var taxID = value.id;
+						var eleOption = document.createElement('option');
+						eleOption.appendChild(document.createTextNode(taxRate));
+						eleOption.value = taxID;
+						eleSelect.appendChild(eleOption);
+					}
+					);		
+				}
+				if(c == 12){
+					//TAX RATE
+					//unique ID for rate
+					
+					if($('#counterValue').length > 0){
+						var rateName2 = namingValue + document.getElementById('counterValue').value;
+					}else{
+						var rateName2 = namingValue;
+					}	
+
+					
+					rateName = "rate|" + rateName2.toString();
+					ele.setAttribute('id', rateName);
+					ele.setAttribute('class', 'styled3Total');
+					ele.setAttribute('name', 'noCol8[]');
+					ele.setAttribute('readonly', 'true');
+					td.appendChild(ele);
+					//default value inside textarea
+					var myTab = document.getElementById('empTable');					
+					var element2 = myTab.rows.item(rowCnt).cells[12];
+					element2.childNodes[0].value = "0.00";				
+					namingValue = namingValue + 1;				
+				}
+				if(c == 13){
+					//TAX TOTAL
+					ele.setAttribute('id', 'noCol9[]');
+					ele.setAttribute('class', 'styled3Total');
+					ele.setAttribute('name', 'noCol9[]');
+					ele.setAttribute('maxlength', '15');
+					ele.setAttribute('readonly', 'true');
+					td.appendChild(ele);
+					//default value inside textarea
+					var myTab = document.getElementById('empTable');					
+					var element2 = myTab.rows.item(rowCnt).cells[13];
+					element2.childNodes[0].value = "0.00";
+					
+				}
+				if(c == 14){
+					//GRAND TOTAL
+					ele.setAttribute('id', 'noCol10[]');
+					ele.setAttribute('class', 'styled3Total');
+					ele.setAttribute('name', 'noCol10[]');
+					ele.setAttribute('maxlength', '15');
+					ele.setAttribute('readonly', 'true');
+					td.appendChild(ele);
+					//default value inside textarea
+					var myTab = document.getElementById('empTable');					
+					var element2 = myTab.rows.item(rowCnt).cells[14];
+					element2.childNodes[0].value = "0.00";
+				}
+				
+            }
+			rowCounter = rowCounter + 1;
+			
+		}
+    
+		//loop through the table to see which rows are selected
+		var myTab = document.getElementById('empTable');
+        var values = new Array();
+		
+		// LOOP THROUGH EACH ROW OF THE TABLE.
+        for (row = 1; row < myTab.rows.length; row++) {
+			 for (c = 0; c < myTab.rows[row].cells.length; c++) {   // EACH CELL IN A ROW.
+
+                var element = myTab.rows.item(row).cells[c];
+                if (element.childNodes[0].getAttribute('type') == 'checkbox') {
+                    if(element.childNodes[0].checked == true){
+						values.push(element.childNodes[0].value);
+					}else{
+						values.push('0');
+					}				
+				}
+            }
+        }		
+        
+		document.getElementById('invoiceCheckbox').value = values;
+		
+		//test create table row
+		if(rowCnt == 1){createTableTotal()};
+		
+	}	
+	
+
+    // DELETE TABLE ROW.
+    function removeRow(oButton) {
+		
+		var r = confirm("Do you want to Remove this row?");
+		if(r==false){
+			return false;
+		}else{		
+		
+			var empTab = document.getElementById('empTable');
+			empTab.deleteRow(oButton.parentNode.parentNode.rowIndex);       // BUTTON -> TD -> TR.
+		
+					//loop through the table to see which rows are selected
+			var myTab = document.getElementById('empTable');
+			var values = new Array();
+			
+			// LOOP THROUGH EACH ROW OF THE TABLE.
+			for (row = 1; row < myTab.rows.length; row++) {
+				 for (c = 0; c < myTab.rows[row].cells.length; c++) {   // EACH CELL IN A ROW.
+
+					var element = myTab.rows.item(row).cells[c];
+					if (element.childNodes[0].getAttribute('type') == 'checkbox') {
+						if(element.childNodes[0].checked == true){
+							values.push(element.childNodes[0].value);
+						}else{
+							values.push('0');
+						}				
+					}
+				}
+			}		
+			//console.log(values);		
+			document.getElementById('invoiceCheckbox').value = values;
+	
+			var rowCnt = empTab.rows.length;        // GET TABLE ROW COUNT.
+			if(rowCnt == 1){
+				$("#empTableTotal").remove();
+			}else{
+				CalculateRowTotal();
+			}	
+	
+		}
+	}	
+	
+	//-----------------------------------------------------------
+	
+	
+	var autoExpand = function (field) {
+
+	// Reset field height
+	field.style.height = 'inherit';
+
+	// Get the computed styles for the element
+	var computed = window.getComputedStyle(field);
+
+	// Calculate the height
+	var height = parseInt(computed.getPropertyValue('border-top-width'), 10)
+	             + parseInt(computed.getPropertyValue('padding-top'), 10)
+	             + field.scrollHeight
+	             + parseInt(computed.getPropertyValue('padding-bottom'), 10)
+	             + parseInt(computed.getPropertyValue('border-bottom-width'), 10);
+
+	field.style.height = height + 'px';
+
+};
+
+document.addEventListener('input', function (event) {
+	if (event.target.tagName.toLowerCase() !== 'textarea') return;
+	autoExpand(event.target);
+}, false);
+    
+</script>
+</head>
+
+<?php 
+	if(mysqli_num_rows($resultDebitNoteDetailInfo) == 0){
+		echo "<body onload=\"createTable()\">";
+	}else{
+		echo "<body onload=\"GetTaxRateList()\">";
+	}
+?>
+
+<center>
+<div class="navbar">
+	<?php include 'menuPHPImes.php';?>
+</div>
+<table width="1200px" border="0" cellpadding="0"><tr height="40"><td>&nbsp;</td></tr></table>
+
+
+<main2>
+  <nav class="floating-menu">
+    <h3></h3>
+    <a href="debitNoteList.php">Debit Note Database</a>
+    
+  </nav>
+</main2>
+
+
+
+<p></p>
+<form id="debitNote" action="editDebitNote.php" method="POST" onsubmit="return CheckAndSubmit()">
+<table width="1200px" cellpadding="0" border="1" class="mystyle">
+<tr><td colspan="5" align="center"><h1>Edit Debit Note</h1></td></tr>
+<tr>
+<td>To</td>
+
+<td><input type="text" name="debitNoteCustomer" id="debitNoteCustomer" size="50" value="<?php echo $resultCustomerInfo2[0];?>" readonly></td>
+
+
+
+
+
+<td>&nbsp;</td>
+<td>Debit Note No</td>
+<td><input type="text" name="debitNoteNo" id="debitNoteNo" size="12" value="<?php echo $rowDebitNoteInfo[0];?>" readonly></td>
+</tr>
+<tr><td>Attention</td><td><input type="text" name="debitNoteAttention" size="40" maxlength="100" value="<?php echo $rowDebitNoteInfo[5];?>"></td><td></td><td>Date</td><td><input id="demo2" type="text" name="debitNoteDate" size="10" readonly value="<?php echo date("d/m/Y",strtotime($rowDebitNoteInfo[1]))?>" readonly >&nbsp;</td></tr>
+<tr><td>Address</td><td><?php echo $resultCustomerInfo2[2];?></td><td></td><td></td><td>
+
+
+</td></tr>
+<tr><td>Telephone</td><td><?php echo $resultCustomerInfo2[1]?></td><td></td><td>Invoice No</td><td><input type="text" name="invoiceNo" size="12" value="<?php echo $rowDebitNoteInfo[16];?>" readonly>
+
+
+
+
+</td></tr>
+<tr><td>Email</td><td><input type="text" name="debitNoteEmail" size="40" maxlength="100" value="<?php echo $rowDebitNoteInfo[6];?>"></td><td></td><td></td><td>
+
+
+
+
+
+
+
+
+
+
+</td></tr>
+<tr><td></td><td></td><td></td><td></td><td>
+
+
+
+
+
+
+</td></tr>
+<tr><td></td><td></td><td></td><td>From</td><td><input type="text" name="debitNoteForm" size="20" maxlength="50" value="<?php echo $rowDebitNoteInfo[3];?>"></td></tr>
+
+<tr><td colspan="5" align="right"><a href="printDebitNote.php?idDebitNote=<?php echo $debitNoteID;?>&idCustomer=<?php echo $customerID;?>" target="_blank"><img src="images/printerBlue.png" width="32" height="32"></a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>
+<tr><td colspan="5" align="left"></td></tr>
+<tr><td colspan="5" align="left">&nbsp;<input type="text" name="debitNoteTitle" maxlength="200" size="150" value="<?php echo $rowDebitNoteInfo[2];?>"></td></tr>
+<tr><td colspan="5" align="left"><textarea name="debitNoteContent" id="debitNoteContent"><?php echo $rowDebitNoteInfo[15];?></textarea></td></tr>
+</table>
+<!--this area we put the invoice details-->
+
+<!--THE CONTAINER WHERE WE'll ADD THE DYNAMIC TABLE-->
+<div id="cont">
+<?php 
+	$strInvoiceCheckbox = ""; //to store which line is bold
+	
+	if(mysqli_num_rows($resultDebitNoteDetailInfo) > 0){
+		
+		$numOfRows = mysqli_num_rows($resultDebitNoteDetailInfo);
+		$counter = 0;
+		echo "<table width='1200px' cellpadding='0px' border='1px' class='mystyle' id='empTable'>";
+		
+		echo "<tr><th></th><th>B</th><th>No</th><th>Description</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th><th>Disc%</th><th>Disc</th><th>A.Disc</th><th>Code</th><th>Rate</th><th>Tax</th><th>Total</th></tr>";
+		
+		$intUniqueNameID = 1; //to generate unique ID name for each name column text area
+		
+		while($rowInvoiceDetailInfo = mysqli_fetch_row($resultDebitNoteDetailInfo)){
+			
+			$counter = $counter + 1;
+			
+		
+			echo "<tr>";
+			
+			echo "<td><input type='button' value='del' onclick='removeRow(this)'></td>";
+			echo "<td>";
+			if($rowInvoiceDetailInfo[10] == 1){
+				echo "<input type='checkbox' name='noCheckbox' value='1' checked onclick='check(this)'>";
+				$style3name = "styled3B";
+				$style3nameTotal = "styled3BTotal";
+				$style2name = "styled2B";
+			}else{
+				echo "<input type='checkbox' name='noCheckbox' value='1' onclick='check(this)'>";
+				$style3name = "styled3";
+				$style3nameTotal = "styled3Total";
+				$style2name = "styled2";
+			}
+			echo "</td>";
+			echo "<td><textarea class=$style2name id='noCol1[]' name='noCol1[]' maxlength='6'>$rowInvoiceDetailInfo[0]</textarea></td>";
+			
+			
+			//get a unique ID for name column				
+			$idNamePHP = "id123456789".$intUniqueNameID;
+			//echo "<td><textarea class='styled' id='$idNamePHP' name='noCol2[]' maxlength='200' ondblclick='popupwindow()'>$rowInvoiceDetailInfo[1]</textarea></td>";
+			
+			
+			
+			
+			if($rowInvoiceDetailInfo[10] == 1){			
+				echo "<td><textarea class='styled' style=\"font-weight: bold; width: 480px;\" id='$idNamePHP' name='noCol2[]' maxlength='200' ondblclick='popupwindow()'>$rowInvoiceDetailInfo[1]</textarea></td>";
+			}else{
+				echo "<td><textarea class='styled' style='width: 480px;' id='$idNamePHP' name='noCol2[]' maxlength='200' ondblclick='popupwindow()'>$rowInvoiceDetailInfo[1]</textarea></td>";
+			}
+			
+			
+			
+			
+			
+			
+			
+			
+			if($rowInvoiceDetailInfo[2]==0.00){
+				echo "<td><textarea class=$style3name id='noCol3[]' name='noCol3[]' maxlength='10' onblur='CalculateRowTotal()'></textarea></td>";
+			}else{
+				echo "<td><textarea class=$style3name id='noCol3[]' name='noCol3[]' maxlength='10' onblur='CalculateRowTotal()'>$rowInvoiceDetailInfo[2]</textarea></td>";
+			}
+			
+			echo "<td><textarea class=$style3name id='noCol4[]' name='noCol4[]' maxlength='10'>$rowInvoiceDetailInfo[3]</textarea></td>";
+			echo "<td><textarea class=$style3name id='noCol5[]' name='noCol5[]' maxlength='15' onblur='CalculateRowTotal()'>$rowInvoiceDetailInfo[4]</textarea></td>";
+			echo "<td><textarea class=$style3nameTotal id='noCol6[]' name='noCol6[]' maxlength='15' readonly>$rowInvoiceDetailInfo[5]</textarea></td>";
+			//discount amount
+			if($rowInvoiceDetailInfo[12]==0.00){
+				echo "<td><textarea class=$style3name id='noCol11[]' name='noCol11[]' maxlength='10' onblur='CalculateRowTotal()'></textarea></td>";
+			}else{
+				echo "<td><textarea class=$style3name id='noCol11[]' name='noCol11[]' maxlength='10' onblur='CalculateRowTotal()'>$rowInvoiceDetailInfo[12]</textarea></td>";
+			}
+			//discount amount
+			echo "<td><textarea class=$style3nameTotal id='noCol12[]' name='noCol12[]' maxlength='15' readonly>$rowInvoiceDetailInfo[13]</textarea></td>";
+			//total after discount
+			echo "<td><textarea class=$style3nameTotal id='noCol13[]' name='noCol13[]' maxlength='15' readonly>$rowInvoiceDetailInfo[14]</textarea></td>";
+			
+			echo "<td>";
+			$idNameValue = "select|".$counter;
+			echo "<select name='noCol7[]' id=$idNameValue onchange=\"GetTaxRate(id)\">";
+			//reuse the recordset
+			mysqli_data_seek($resultGetTaxRate, 0);
+			if(mysqli_num_rows($resultGetTaxRate) > 0){
+				$taxRateID = $rowInvoiceDetailInfo[6];
+				$arrayTest1 = searchArray(0, $taxRateID, $aTaxRateListDB);
+				$taxRateCode = $aTaxRateListDB[$arrayTest1][1];
+				echo "<option value=$taxRateID>$taxRateCode</option>";
+				while($rowGetTaxRate=mysqli_fetch_array($resultGetTaxRate)){
+					echo "<option value=$rowGetTaxRate[0]>$rowGetTaxRate[1]</option>";
+				}
+				
+			}
+			echo "</select></td>";
+			
+			$idNameValue2 = "rate|".$counter;
+			
+			echo "<td><textarea class=$style3nameTotal id=$idNameValue2 name='noCol8[]' readonly>$rowInvoiceDetailInfo[7]</textarea></td>";
+			echo "<td><textarea class=$style3nameTotal id='noCol9[]' name='noCol9[]' maxlength='15' readonly>$rowInvoiceDetailInfo[8]</textarea></td>";
+			echo "<td><textarea class=$style3nameTotal id='noCol10[]' name='noCol10[]' maxlength='15' readonly>$rowInvoiceDetailInfo[9]</textarea></td>";
+
+			$strQuotationCheckbox2 = $rowInvoiceDetailInfo[10];			
+			if($numOfRows > 1){
+				if($counter == 1){
+					$strInvoiceCheckbox = $strInvoiceCheckbox.$strQuotationCheckbox2;
+				}else{					
+					if($counter <= $numOfRows){						
+						$strInvoiceCheckbox = $strInvoiceCheckbox.",".$strQuotationCheckbox2;
+					}else{
+						$strInvoiceCheckbox = $strInvoiceCheckbox.$strQuotationCheckbox2;
+					}
+				}				
+			}else{
+				$strInvoiceCheckbox = $strQuotationCheckbox2;
+			}			
+			
+			echo "</tr>";
+			$intUniqueNameID = $intUniqueNameID + 1;
+		}
+		echo "</table>";
+	}
+	
+?>
+</div>
+<!--THE CONTAINER WHERE WE'll ADD THE DYNAMIC TABLE TOTAL-->
+<div id="cont2">
+<?php
+	if(mysqli_num_rows($resultDebitNoteDetailInfo) > 0){
+		echo "<table width='1200px' cellpadding='0px' border='1px' class='mystyle' id='empTableTotal'>";
+		echo "<tr><td style='width:76%'></td><td style='width:15%'>Subtotal</td><td style='width:9%'><input type='text' id='subTotal' name='subTotal' class='styled4' value='$rowDebitNoteInfo[7]' readonly></td><tr>";
+		
+		echo "<tr><td style='width:76%'></td><td style='width:15%'>Discount Total</td><td style='width:9%'><input type='text' id='discountTotal' name='discountTotal' class='styled4' value='$rowDebitNoteInfo[10]' readonly></td><tr>";
+		echo "<tr><td style='width:76%'></td><td style='width:15%'>Total After Discount</td><td style='width:9%'><input type='text' id='totalAfterDiscount' name='totalAfterDiscount' class='styled4' value='$rowDebitNoteInfo[11]' readonly></td><tr>";
+		
+		echo "<tr><td style='width:76%'></td><td style='width:15%'>Tax</td><td style='width:9%'><input type='text' id='taxTotal' name='taxTotal' class='styled4' value='$rowDebitNoteInfo[8]' readonly></td><tr>";
+		echo "<tr><td style='width:76%'></td><td style='width:15%'>Total</td><td style='width:9%'><input type='text' id='grandTotal' name='grandTotal' class='styled4' value='$rowDebitNoteInfo[9]' readonly></td><tr>";
+		echo "<tr><td style='width:76%'></td><td style='width:15%'>Round</td><td style='width:9%'><input type='text' id='roundAmount' name='roundAmount' class='styled4' value='$rowDebitNoteInfo[12]' readonly>";
+		
+		if($rowDebitNoteInfo[14] == 1){
+			echo "<input type='checkbox' id='roundStatus' name='roundStatus' value='1' checked onclick='CalculateRowTotal()'>";
+		}else{
+			echo "<input type='checkbox' id='roundStatus' name='roundStatus' value='1' onclick='CalculateRowTotal()'>";
+		}
+		
+		echo "</td><tr>";
+		echo "<tr><td style='width:76%'></td><td style='width:15%'>Rounded Total</td style='width:9%'><td><input type='text' id='groundTotalRound' name='groundTotalRound' class='styled4' value='$rowDebitNoteInfo[13]' readonly><input type='hidden' id='counterValue' value='$counter'></td><tr>";
+		echo "</table>";
+	}
+?>
+</div>
+<p>
+<input type="button" id="addRow" value="Add New Row" onClick="addRow2()" />
+</p>
+<table width="1200px" cellpadding="0" border="1" class="mystyle">
+<tr><td colspan="5" align="left"><textarea name="debitNoteTerms" id="debitNoteTerms"><?php echo $rowDebitNoteInfo[4];?></textarea>
+
+<input type="hidden" name="debitNoteOriginalAmount" value="<?php echo $rowDebitNoteInfo[13];?>">
+<input type="hidden" name="debitNoteID" value="<?php echo $debitNoteID?>">
+<input type="hidden" name="customerID" value="<?php echo $customerID?>">
+<input type="hidden" name="invoiceID" value="<?php echo $rowDebitNoteInfo[17]?>">
+<input type="hidden" name="invoiceCheckbox" id="invoiceCheckbox" value="<?php echo $strInvoiceCheckbox?>">
+<!--store the button ID that was clicked because onClick button code is processed before FORM submit code-->
+
+</td></tr>
+
+
+</table>
+
+<p><input type="submit" id="bt" name="Submit" value="Edit Debit Note"></p>
+
+
+
+</form>
+</center>
+<script src="ckeditor/ckeditor.js"></script>
+<script>
+	CKEDITOR.replace('debitNoteTerms');
+	CKEDITOR.replace('debitNoteContent');
+</script>
+</body>
+
+
+</html>
